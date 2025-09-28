@@ -1,0 +1,867 @@
+
+library(ggplot2)
+library(tidyverse)
+library(reshape2)
+setwd("E:/陈沛霖-病原菌/代谢-微生物组/fpc")
+zg <- read.csv("Group_OTU.csv",header = T,row.names = 1)
+nrow(zg)
+zg <- subset(zg, ID_OTU != '#N/A')
+zg <- subset(zg, zg$Habitat == 'Leaf')
+nrow(zg)
+
+otu <- read.csv("0000BacteriaFungi.csv",header = T,row.names = 1)
+fungi1 <- subset(otu, otu$Kingdom1=="Fungi")
+fungi <- fungi1[,(1:1029)]
+fungi <- data.frame(t(fungi))
+
+library(dplyr)
+row.names(zg)<-zg$ID_OTU
+fungi_g <- as.data.frame(fungi[row.names(fungi)%in%row.names(zg),])
+library(vegan)
+set.seed(100)
+otu_Flattening = as.data.frame(t(rrarefy(fungi_g, 362)))
+fungi_g <- data.frame(t(otu_Flattening))
+
+total<-apply(fungi_g, 1, sum); 
+fung.relabu<-data.frame(lapply(fungi_g, function(x) {  x / total  }) )
+fung.L<-fung.relabu
+fung.L<-data.frame(t(fung.L))
+
+fung.L<-data.frame(t(fung.L))
+fung.L <- fung.L[,order(-colSums(fung.L))] 
+fung.L<-data.frame(t(fung.L))
+
+trait <- read.csv("OTU_TOP25_trait.csv",header = T,row.names = 1)
+fung.L1 <- as.data.frame(fung.L[row.names(fung.L)%in%row.names(trait),])
+
+fung.L1 <-fung.L1[order(row.names(fung.L1)),]
+trait <-trait[order(row.names(trait)),]
+row.names(fung.L1)==row.names(fung.L1)
+
+OTU_fung <- fung.L1
+OTU_fung$ID <- row.names(OTU_fung)
+OTU_fung <- melt(OTU_fung, id.vars = "ID")
+colnames(OTU_fung) <- c("OTU", "ID_OTU", "var")
+OTU_fung_g <- left_join(OTU_fung,zg[,(5:10)],by='ID_OTU')
+
+OTU_fung_g$Timepiont  <- gsub("TP", "",OTU_fung_g$Timepiont, fixed = TRUE)
+OTU_fung_g$Timepiont  <- as.numeric(OTU_fung_g$Timepiont)
+trait1 <- trait
+trait1$OTU <- row.names(trait1)
+OTU_fung_g <- left_join(OTU_fung_g,trait1[,c(3,6)],by='OTU')
+OTU_fung_g$var <-  OTU_fung_g$var*100
+OTU_fung_g$GZ1 <- paste(OTU_fung_g$GZ,"Mb")
+
+otu1 <- otu
+otu1$OTU <- row.names(otu1)
+OTU_fung_g <- left_join(OTU_fung_g,otu1[,c(1041, 1037)],by='OTU')
+library(ggsci)
+ggplot(data = OTU_fung_g, aes(x = Timepiont,  y = var)) +
+ geom_point(aes(colour=Funguild), size = 5, alpha = 0.7,)+labs(x="Week",y="Relative abundance (%)")+
+  geom_smooth(se=FALSE,size=2, method="lm", aes(), alpha = 0.2,color="black")+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 1,size=6,fontface='bold',color="black") +facet_wrap(vars(GZ1,OTU), nrow = 5, scales = "free_y")+scale_color_nejm() +
+  theme_bw()+
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=18, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=15,face="bold"),legend.position = 'bottom')
+
+ggsave("Supplementary Fig. 5.pdf",width = 15, height =15)
+
+fung.L1_GC <- fung.L1 * trait$GC
+fung.L1_GC_sum <- data.frame(colSums(fung.L1_GC))
+fung.L1_GC_sum$ID <- row.names(fung.L1_GC_sum)
+colnames(fung.L1_GC_sum)[1] <- 'GC_content'
+
+fung.L1_size <- fung.L1 * trait$GZ
+fung.L1_size_sum <- data.frame(colSums(fung.L1_size))
+fung.L1_size_sum$ID <- row.names(fung.L1_size_sum)
+colnames(fung.L1_size_sum)[1] <- 'size_content'
+
+identical(row.names(fung.L1_size_sum),row.names(fung.L1_GC_sum))
+fung.L1_GC_size_sum <- cbind(fung.L1_size_sum,fung.L1_GC_sum)
+fung.L1_GC_size_sum <- fung.L1_GC_size_sum[,-c(2,4)]
+
+total1<-apply(fung.L1, 2, sum); 
+total1 <- as.data.frame(total1)
+
+fung.L1_GC_size_sum_normal <- fung.L1_GC_size_sum/total1$total1
+fung.L1_GC_size_sum_normal$ID_OTU <- row.names(fung.L1_GC_size_sum_normal)
+
+precent <- read.csv("fungipct.csv",header = T)
+colnames(precent)[1] <- 'ID_OTU'
+fung.L1_GC_size_sum_normal1 <- left_join(precent,fung.L1_GC_size_sum_normal,by='ID_OTU')
+
+fung.L1_GC_size_sum_normal2 <- left_join(fung.L1_GC_size_sum_normal1,zg[,c(5,8,9)],by='ID_OTU')
+
+fung.L1_GC_size_sum_normal2$Timepiont  <- gsub("TP", "",fung.L1_GC_size_sum_normal2$Timepiont, fixed = TRUE)
+fung.L1_GC_size_sum_normal2$Timepiont  <- as.numeric(fung.L1_GC_size_sum_normal2$Timepiont)
+
+fung.L1_GC_size_sum_normal2$Treatment1 <- factor(fung.L1_GC_size_sum_normal2$Treatment1,levels = c("Control","Pre_flowering_drought","Post_flowering_drought"),labels = c("Control","Preflowering drought","Postflowering drought"))
+
+fung.L1_GC_size_sum_normal2$lev1<-interaction(fung.L1_GC_size_sum_normal2$Timepiont, fung.L1_GC_size_sum_normal2$Treatment1,sep = ":") 
+
+trans <- read.csv("Trans_GC_size.csv",header = T,row.names = 1)
+
+library(ggplot2)
+colnames(fung.L1_GC_size_sum_normal2)[4] <- 'Genome_size'
+colnames(fung.L1_GC_size_sum_normal2)[5] <- 'Genome_GC'
+colnames(trans)[4] <- 'Transcript_size'
+colnames(trans)[6] <- 'Transcript_GC'
+fung_size <- left_join(fung.L1_GC_size_sum_normal2[,c(1,2,4,5,6,7)] ,trans[,c(1,4,6)],by='ID_OTU')
+
+betadis_otu <- read.csv("Leaf_fungi_betadisper_box.csv",header = T)
+betadis_trans <- read.csv("Leaf_trans_betadisper_box.csv",header = T)
+colnames(betadis_otu)[1] <- 'OTU_disper'
+colnames(betadis_trans)[1] <- 'Transcript_disper'
+betadis_otu$lev<-interaction(betadis_otu$Treat, betadis_otu$Week,sep = ":") 
+betadis_trans$lev<-interaction(betadis_trans$Treat, betadis_trans$Week,sep = ":")
+zg1 <- zg
+zg1$Week  <- gsub("TP", "",zg1$Timepiont, fixed = TRUE)
+zg1$Week <- as.numeric(zg1$Week)
+zg1$lev<-interaction(zg1$Treatment1, zg1$Week,sep = ":") 
+zg1 <- left_join(zg1,betadis_otu[,c(1,5)],by='lev')
+zg1 <- left_join(zg1,betadis_trans[,c(1,5)],by='lev')
+
+fung_size <- left_join(fung_size,zg1[,c(5,13,14)],by='ID_OTU')
+
+Diver <- read.csv("gene_diversty.csv",header = T)
+colnames(Diver)[1] <- "ID_OTU"
+colnames(Diver)[2] <- "Gene_richness"
+fung_size <- left_join(fung_size,Diver[,c(1,2)],by='ID_OTU')
+
+growth <- read.csv("leaf_gRodon.csv",header = T)
+growth$max_growth <- 1/growth$dd
+fung_size <- left_join(fung_size,growth[,c(6,4)],by='ID_OTU')
+
+library(ggplot2)
+library(nlme)
+fung_size1_control <- subset(fung_size, fung_size$Treatment1 == 'Control')
+pop_control <- nls(Fungi_percent ~SSlogis(Timepiont, phi1, phi2, phi3), data = fung_size1_control)
+summary(pop_control)
+alpha <- coef(pop_control) 
+f_control <- expression(y=98.31192/(1 + exp(-(x -8.63830)/0.91701)))
+df_control <- deriv(f_control,"x",function.arg = T)
+D(f_control,'x')
+V_control <- function(x) {
+  return(98.31192 * (exp(-(x - 8.6383)/0.91701) * (1/0.91701))/(1 + exp(-(x - 8.6383)/0.91701))^2)
+}
+
+fung_size1_pre <- subset(fung_size, fung_size$Treatment1 == 'Preflowering drought')
+fung_size1_pre2 <- subset(fung_size, fung_size$Treatment1 == 'Control'&fung_size$Timepiont =='2')
+fung_size1_pre <- rbind(fung_size1_pre,fung_size1_pre2)
+pop_pre <- nls(Fungi_percent ~SSlogis(Timepiont, phi1, phi2, phi3), data = fung_size1_pre)
+summary(pop_pre)
+alpha <- coef(pop_pre) 
+f_pre <- expression(y=101.1381/(1 + exp(-(x -10.3931)/1.7165)))
+df_pre <- deriv(f_pre,"x",function.arg = T)
+D(f_pre,'x')
+V_pre <- function(x) {
+  return(101.1381 * (exp(-(x - 10.3931)/1.7165) * (1/1.7165))/(1 + exp(-(x - 10.3931)/1.7165))^2)
+}
+
+
+fung_size1_post <- subset(fung_size, fung_size$Treatment1 == 'Postflowering drought')
+fung_size1_post2 <- subset(fung_size, fung_size$Treatment1 == 'Control'&fung_size$Timepiont < 9)
+fung_size1_post <- rbind(fung_size1_post,fung_size1_post2)
+pop_post <- nls(Fungi_percent ~SSlogis(Timepiont, phi1, phi2, phi3), data = fung_size1_post)
+summary(pop_post)
+alpha <- coef(pop_post) 
+f_post <- expression(y=96.5130/(1 + exp(-(x -8.8562)/1.3339)))
+df_post <- deriv(f_post,"x",function.arg = T)
+D(f_post,'x')
+V_post <- function(x) {
+  return(96.513 * (exp(-(x - 8.8562)/1.3339) * (1/1.3339))/(1 + exp(-(x - 8.8562)/1.3339))^2)
+}
+
+New_Df = NULL
+
+for(i in 2:17){
+  rate <- V_post(i)
+  vec <- c(rate,i,"Post_flowering_drought")
+  New_Df <- rbind(New_Df, vec)                   
+}
+
+for(i in 2:17){
+  rate <- V_pre(i)
+  vec <- c(rate,i,"Pre_flowering_drought")
+  New_Df <- rbind(New_Df, vec)                   
+}
+
+for(i in 2:17){
+  rate <- V_control(i)
+  vec <- c(rate,i,"Control")
+  New_Df <- rbind(New_Df, vec)                   
+}
+
+New_Df <- as.data.frame(New_Df)
+New_Df$V2 <- as.numeric(New_Df$V2)
+New_Df$V1 <- as.numeric(New_Df$V1)
+New_Df$Group_1<-interaction(New_Df$V3, "Leaf",New_Df$V2,sep = ":")
+
+zg1$Group_1<-interaction(zg1$Treatment1, "Leaf",zg1$Week,sep = ":")
+zg1 <- left_join(zg1,New_Df[,c(1,4)],by='Group_1')
+fung_size <- left_join(fung_size ,zg1[,c(5,16)],by='ID_OTU')
+colnames(fung_size)[13] <- 'Growth_rate'
+
+alpha_diversity <- function(x, tree = NULL) {
+  observed_KO <- rowSums(x>0)
+  Shannon_KO <- diversity(x, index = 'shannon',base = 2)
+  Simpson_KO <- diversity(x, index = 'simpson')    #注意，这里是Gini-Simpson 指数
+  #保留四位小数
+  Shannon_KO <- sprintf("%0.4f", Shannon_KO)
+  Simpson_KO <- sprintf("%0.4f", Simpson_KO)
+  result <- data.frame(observed_KO,Shannon_KO, Simpson_KO)
+  result
+}
+alpha_otu <- alpha_diversity (t(otu_Flattening))
+alpha_otu$ID_OTU <- row.names(alpha_otu)
+colnames(alpha_otu)[1] <- 'OTU_richness'
+fung_size <- left_join(fung_size ,alpha_otu[,c(4,1)],by='ID_OTU')
+
+COG <- read.csv("COG.csv",header = T)
+COG$COG<- gsub("_.*", "",COG$COG)
+colnames(COG)[1] <- 'ID1'
+zg1 <- left_join(zg1,COG,by='ID1')
+fung_size <- left_join(fung_size,zg1[,c(5,17:40)],by='ID_OTU')
+
+fung.L2<-data.frame(t(fung.L))
+fung.L2$ID_OTU <- row.names(fung.L2)
+fung_size <- left_join(fung_size,fung.L2[,c(1078,1:25)],by='ID_OTU')
+
+Metabolome <- read.csv("Metabolome.csv",header = T)
+colnames(Metabolome)[1] <- 'ID_OTU'
+fung_size3 <- left_join(fung_size ,Metabolome[,c(1,3:114)],by='ID_OTU')
+fung_size3 <- na.omit(fung_size3)
+fung_size3 <- subset(fung_size3, fung_size3$chlorogenic.acid != 0)
+fung_size3 <- fung_size3[,-c(1,6)]
+
+#write.csv(fung_size3,"net_id1.csv")
+library(psych)
+library(dplyr)
+spman.r0 = corr.test(fung_size3, use="pairwise",method="spearman",adjust="fdr", alpha=.05, ci=FALSE)
+Cor<-as.matrix(spman.r0$r)
+Cor.df<-data.frame(row=rownames(Cor)[row(Cor)[upper.tri(Cor)]], 
+                   col=colnames(Cor)[col(Cor)[upper.tri(Cor)]], Cor=Cor[upper.tri(Cor)])
+
+P0<-as.matrix(spman.r0$p)
+P.df<-data.frame(row=rownames(P0)[row(P0)[upper.tri(P0)]], 
+                 col=colnames(P0)[col(P0)[upper.tri(P0)]], p=P0[upper.tri(P0)])
+
+r.cutoff = 0.6
+p.cutoff = 0.01
+df <- data.frame(Cor.df,  P.df)
+da.tmp<-df.sig<-df[abs(df$Cor) >r.cutoff & df$p <p.cutoff,]
+da.tmp<-na.omit(da.tmp)
+V1<-data.frame("v1"=da.tmp$row); V2<-data.frame("v2"=da.tmp$col)
+
+ID.tmp <- read.csv("net_id.csv",header = T)
+IDsub1<-ID.tmp[ID.tmp$Category %in% V1$v1, ]; IDsub2<-ID.tmp[ID.tmp$Category %in% V2$v2, ]
+V1$id  <- 1:nrow(V1); V2$id  <- 1:nrow(V2)
+M1<-merge(V1, IDsub1, by.x = "v1", by.y = "Category", all.x= T); M1<-M1[order(M1$id), ]
+M2<-merge(V2, IDsub2, by.x = "v2", by.y = "Category", all.x = T); M2<-M2[order(M2$id), ]
+da<-data.frame(da.tmp, M1, M2)
+
+da_between = da %>% filter((Description=="Fungi" & Description.1=="Metab")|(Description=="Metab" & Description.1=="Fungi"))
+metabee <- unique(da_between$col)
+
+Metabolome1 <- Metabolome[,c('ID_OTU',metabee)]
+fung_size1 <- left_join(fung_size,Metabolome1,by='ID_OTU')
+fung_size1 <- fung_size1[,-c(1,6)]
+fung_size1 <- na.omit(fung_size1)
+
+trait <- fung_size1[,c(1,2,3,5:12)]
+colnames(trait) <- c("Fungal community abundance","Average genome size","Average genome GC content","Average transcript length","Average transcript GC content","Taxonomic beta diversity","Metatranscriptomic beta diversity","Transcribed gene richness","Max growth rate","Community expansion rate","Fungal OTU richness")
+Func <- fung_size1[,c(13:36)]
+Otu <- fung_size1[,c(37:61)]
+Metab <- fung_size1[,c(62:95)]
+
+corr_trait_func <- corr.test(trait, Func, method="spearman",adjust="fdr", alpha=.05, ci=FALSE)
+r_corr_trait_func<-corr_trait_func$r
+p_corr_trait_func<-corr_trait_func$p
+library(pheatmap)
+map_corr_trait_func <- pheatmap(r_corr_trait_func)
+
+trait1 <-trait[,map_corr_trait_func$tree_row$order]
+Func1 <- Func[,map_corr_trait_func$tree_col$order]
+
+corr_trait_Otu <- corr.test(trait1, Otu, method="spearman",adjust="fdr", alpha=.05, ci=FALSE)
+r_corr_trait_Otu<-corr_trait_Otu$r
+p_corr_trait_Otu<-corr_trait_Otu$p
+library(pheatmap)
+map_r_corr_trait_Otu <- pheatmap(r_corr_trait_Otu,cluster_row = FALSE)
+Otu1 <- Otu[,map_r_corr_trait_Otu$tree_col$order]
+
+corr_trait_Meta <- corr.test(trait1, Metab, method="spearman",adjust="fdr", alpha=.05, ci=FALSE)
+r_corr_trait_Meta<-corr_trait_Meta$r
+p_corr_trait_Meta<-corr_trait_Meta$p
+library(pheatmap)
+library(tidyverse)
+library(reshape2)
+map_corr_trait_Meta <- pheatmap(r_corr_trait_Meta,cluster_row = FALSE)
+Metab1 <- Metab[,map_corr_trait_Meta$tree_col$order]
+
+
+
+cal <- function(ga,gb,c){
+  r_result <- corr.test(ga,gb,method="spearman",adjust="fdr", alpha=.05, ci=FALSE)
+  r <- 
+    r_result$r %>% 
+    melt() %>% 
+    set_names(c('tax', 'Index', 'r'))
+  p <- 
+    r_result$p %>% 
+    melt() %>% 
+    set_names(c('tax_p', 'Index_p', 'P_value'))
+  
+  data <- cbind(r,p)
+  data$group <- c
+  data
+}
+
+#data1 <- cal(trait1,Func1,"Fungal function")
+#cog_ann <- read.csv("COG_anno.csv",header = T)
+#colnames(cog_ann)[1] <- 'Index'
+#data1 <- left_join(data1,cog_ann[,c(1,3)],by='Index')
+#data1 <- data1[,c(1:4,8,6,7)]
+#colnames(data1)[5] <- 'Index_p'
+
+data <- rbind(cal(trait1,Func1,"Fungal function"), cal(trait1,Otu1,"Fungal OTU"), cal(trait1,Metab1,"Sorghum metablism"))
+data <- data[,-c(4,5)]
+data$tax <- factor(data$tax, levels = c("Fungal OTU richness",
+                                        "Average genome size",
+                                        "Average transcript length",
+                                        "Taxonomic beta diversity",
+                                        "Metatranscriptomic beta diversity",
+                                        "Community expansion rate",
+                                        "Average genome GC content",
+                                        "Max growth rate",
+                                        "Average transcript GC content",
+                                        "Fungal community abundance",
+                                        "Transcribed gene richness"
+                                        ))
+
+library(ggsci)
+
+data_function <- subset(data, data$group=="Fungal function")
+cog_ann <- zg <- read.csv("COG_anno.csv",header = T)
+colnames(cog_ann)[1] <- 'Index'
+data_function1 <- left_join(data_function,cog_ann[,c(1,3)],by='Index')
+
+data_function1 <- merge(
+  x      = data_function,
+  y      = cog_ann[,c(1,3)],
+  by     = "Index",
+  all.x  = TRUE,
+  sort   = FALSE
+)
+
+orderr1 <- data.frame(Index= colnames(Func1))
+orderr2 <- left_join(orderr1,cog_ann[,c(1,3)],by='Index')
+
+
+ddz <- ggplot(data=data_function1,aes(y=Index, x=tax,fill=r))+ geom_tile(color="gray70",fill="white",size=0.3)+ 
+  geom_point(data=data_function1,aes(y=Index, x=tax,size = ifelse(P_value <= 0.01, abs(r), NA)),color="white",shape=22,na.rm = TRUE)+
+  scale_fill_gradientn(colours =colorRampPalette(c('#C6403D','white','#246BAE'))(111))+ 
+  scale_y_discrete(breaks = orderr2$Index,
+                   labels = orderr2$Annotation)+
+  theme(legend.position="none") +  labs(x = NULL,y = NULL,fill="R value")+
+  theme(strip.text = element_text(size = 12,face = 'bold',colour = "gray2"))+  theme(axis.text=element_text(colour='black',size=12))+  
+  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+
+
+effec <- read.csv("SP_effecitor_tpm_0.8_net.csv",header = T)
+colnames(effec)[2] <- "Fungal community abundance"
+PCE <- read.csv("1SP_fungal_pce_net.csv",header = T)
+colnames(PCE)[2] <- "Fungal community abundance"
+
+fungfunc <- merge(merge(trait1, effec, by = "Fungal community abundance"), PCE, by = "Fungal community abundance")
+
+res_effec <- cal(fungfunc[,c(1:11)],fungfunc[,c(13:584)],"Fungal effec")
+res_effec <- na.omit(res_effec)
+res_effec[which(res_effec$P_value > 0.01),'sig'] <- 'Non_significant'
+res_effec[which(res_effec$P_value < 0.01),'sig'] <- 'Significant'
+
+res_pce <- cal(fungfunc[,c(1:11)],fungfunc[,c(586:634)],"Fungal pce")
+res_pce[which(res_pce$P_value > 0.01),'sig'] <- 'Non_significant'
+res_pce[which(res_pce$P_value < 0.01),'sig'] <- 'Significant'
+
+pce_id <- read.csv("1SP_fungal_pce_net_ID.csv",header = T)
+
+res_pce1 <- merge(
+  x      = res_pce,
+  y      = pce_id,
+  by     = "Index",
+  all.x  = TRUE,
+  sort   = FALSE
+)
+
+res_pce1$tax <- factor(res_pce1$tax, levels = c("Fungal OTU richness",
+                                        "Average genome size",
+                                        "Average transcript length",
+                                        "Taxonomic beta diversity",
+                                        "Metatranscriptomic beta diversity",
+                                        "Community expansion rate",
+                                        "Average genome GC content",
+                                        "Max growth rate",
+                                        "Average transcript GC content",
+                                        "Fungal community abundance",
+                                        "Transcribed gene richness"
+                                        ))
+
+
+res_effec$tax <- factor(res_effec$tax, levels = c("Fungal OTU richness",
+                                        "Average genome size",
+                                        "Average transcript length",
+                                        "Taxonomic beta diversity",
+                                        "Metatranscriptomic beta diversity",
+                                        "Community expansion rate",
+                                        "Average genome GC content",
+                                        "Max growth rate",
+                                        "Average transcript GC content",
+                                        "Fungal community abundance",
+                                        "Transcribed gene richness"
+                                        ))
+
+
+plot1_pce1 <- ggplot(res_pce1, aes(x = factor(tax), y = r)) +
+  geom_jitter(aes(color = factor(Description),shape = factor(sig)), 
+              width = 0.3, height = 0, alpha = 0.7) +  # 散点图，添加轻微抖动避免重叠
+  guides(shape=guide_legend(title= "Significant",nrow = 1),color=guide_legend(title= "CAZymes",nrow = 1))+
+  scale_shape_manual(values=c(1, 16)) + scale_color_aaas() + theme_bw()+
+  labs(x = NULL, y = "Spearman's correlation to CAZymes") +theme(legend.position="top") +
+  theme(legend.box = "vertical",legend.spacing.y = unit(0, "cm"),legend.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")) +
+  theme(strip.text = element_text(size = 13,face = 'bold',colour = "gray2"))+  theme(axis.text.x = element_blank())
+
+
+plot1_res_effec <- ggplot(res_effec, aes(x = factor(tax), y = r)) +
+  geom_jitter(aes(shape = factor(sig)), 
+              width = 0.3, height = 0, alpha = 0.5,size=0.8) +  # 散点图，添加轻微抖动避免重叠
+  guides(shape=guide_legend(title= "Signific",nrow = 1))+
+  scale_shape_manual(values=c(1, 16)) + scale_color_aaas() + theme_bw()+
+  labs(x = NULL, y = "Spearman's correlation to fungal effector") +theme(legend.position="none") +
+  theme(strip.text = element_text(size = 13,face = 'bold',colour = "gray2"))+      theme(axis.text=element_text(colour='black',size=12))+  
+  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+
+library(ggpubr)
+
+ggarrange(ddz,ggarrange(plot1_pce1,plot1_res_effec,ncol = 1,heights = c(0.55,0.8),align = "v"),labels = c("a", "b", "c"),
+               ncol = 2, widths = c(0.8,0.4))
+ggsave("Fig. 2.pdf",width = 12, height =10)
+
+fungi_size_meta <- names(fung_size1) %in%c("Fungi_percent","chlorogenic.acid","caffeic.acid","quinic.acid","ethanolamine.")
+fungi_size_meta1 <- fung_size1[fungi_size_meta]
+colnames(fungi_size_meta1) <- c("Fungi_percent","Caffeic acid","Chlorogenic acid","Ethanolamine","Quinic acid")
+#fungi_size_meta1 <- subset(fungi_size_meta1, fungi_size_meta1$`Chlorogenic acid`!="0")
+library(tidyverse)
+library(ggsci)
+new_fungi_size_meta1 <- gather(fungi_size_meta1,key = "metabolites_type",
+                          value = "Metabolites_content",
+                          2:5)
+
+new_fungi_size_meta1$metabolites_type <- factor(new_fungi_size_meta1$metabolites_type,levels = c("Chlorogenic acid","Caffeic acid","Quinic acid","Ethanolamine"))
+
+a1 <- ggplot(new_fungi_size_meta1,aes(as.numeric(Fungi_percent),as.numeric(Metabolites_content),color=metabolites_type,group=metabolites_type))+
+  geom_point(aes(color=metabolites_type), size = 3, alpha= 0.7)+geom_smooth(se=FALSE,size=1.5, method="lm",aes(color=metabolites_type)) + 
+  ggsci::scale_fill_nejm() + 
+  ggpubr::stat_cor(aes(label = paste(factor(..group..,labels = c("Chlorogenic_acid","Caffeic_acid","Quinic_acid","Ethanolamine")),..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,size=3,fontface='bold',label.y = c(3,5,7,9)) +
+  labs(x="Fungal community abundance",y = "Metabolites content")+   scale_color_nejm() +
+  theme_bw()+theme(strip.text = element_text(size = 12,face="bold"),
+                   panel.spacing = unit(0, "lines"),
+                   legend.title = element_text(colour="black", size=10, face="bold"),
+                   legend.text = element_text(colour="black", size=10, face="bold"),
+                   axis.text=element_text(size=10,face="bold",colour="black"),
+                   axis.title=element_text(size=12,face="bold"),legend.position = "none")
+
+
+
+fungi_growth_meta <- names(fung_size1) %in%c("Growth_rate","D.glucose.6.phosphate","glycerol.3.phosphate","maltose")
+fungi_growth_meta1 <- fung_size1[fungi_growth_meta]
+colnames(fungi_growth_meta1) <- c("Growth_rate","Glucose.6.phosphate","Glycerol.3.phosphate ","Maltose")
+new_fungi_growth_meta1 <- gather(fungi_growth_meta1,key = "metabolites_type",
+                               value = "Metabolites_content",
+                               2:4)
+
+new_fungi_growth_meta1$metabolites_type <- factor(new_fungi_growth_meta1$metabolites_type,levels = c("Glucose.6.phosphate","Glycerol.3.phosphate ","Maltose"))
+
+a2 <- ggplot(new_fungi_growth_meta1,aes(as.numeric(Growth_rate),as.numeric(Metabolites_content),color=metabolites_type,group=metabolites_type))+
+  geom_point(aes(color=metabolites_type), size = 3, alpha= 0.7)+geom_smooth(se=FALSE,size=1.5, method="lm",aes(color=metabolites_type)) + 
+  ggsci::scale_fill_nejm() + 
+  ggpubr::stat_cor(aes(label = paste(factor(..group..,labels = c("Glucose.6.phosphate","Glycerol.3.phosphate ","Maltose")),..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,size=3,fontface='bold',label.y = c(3,5,7)) +
+  labs(x="Community expansion rate",y = "Metabolites content")+   scale_color_nejm() +
+  theme_bw()+theme(strip.text = element_text(size = 12,face="bold"),
+                   panel.spacing = unit(0, "lines"),
+                   legend.title = element_text(colour="black", size=10, face="bold"),
+                   legend.text = element_text(colour="black", size=10, face="bold"),
+                   axis.text=element_text(size=10,face="bold",colour="black"),
+                   axis.title=element_text(size=12,face="bold"),legend.position = "none")
+
+b1 <- ggplot(data = subset(data, data$group=="Sorghum metablism"),aes(y=Index, x=tax,fill=r))+ geom_tile(color="gray70",fill="white",size=0.3)+ 
+  geom_point(data = subset(data, data$group=="Sorghum metablism"),aes(y=Index, x=tax,,size = ifelse(P_value <= 0.01, abs(r), NA)),color="white",shape=22,na.rm = TRUE)+
+  scale_fill_gradientn(colours =colorRampPalette(c('#C6403D','white','#246BAE'))(111))+  
+  theme(legend.position="none") +  labs(x = NULL,y = NULL,fill="R value")+
+  theme(strip.text = element_text(size = 12,face = 'bold',colour = "gray2"))+  theme(axis.text=element_text(colour='black',size=12))+  
+  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+
+
+library(ggpubr)
+
+ggarrange(b1,ggarrange(a1,NULL,nrow=2,heights = c(0.25,0.6)),ggarrange(a2,NULL,nrow=2,heights = c(0.25,0.6)),labels = c("a", "b", "c", "d","e"),
+               ncol = 3, widths = c(0.4,0.25,0.25))
+
+ggsave("Fig. 4.pdf",width = 12, height =10)
+
+library(ggcorrplot)
+library(ggthemes)
+library(cowplot)
+
+corr <- corr.test(trait, method = "spearman",adjust="fdr", alpha=.05, ci=FALSE)
+corr_r <- corr$r
+p.mat <- corr$p
+cor1 <- ggcorrplot(corr_r,show.diag = TRUE, method ="circle",hc.order = TRUE,hc.method = "ward.D",outline.col="white",ggtheme=theme_bw(),type = "lower",colors=c('#C6403D','white','#246BAE'),lab =TRUE,lab_size=2,p.mat = p.mat,sig.level = 0.01,
+           insig = "blank")+theme(axis.text=element_text(colour='black',size=12),legend.position = "none")
+
+library(ggdendro)
+dendro_data <- as.dendrogram(hclust(dist(corr_r), method = "ward.D"))
+dendro_data[[1]] <- rev(dendro_data[[1]])
+dendro_data[[1]][[2]] <- rev(dendro_data[[1]][[2]])
+dendro_plot <- ggdendrogram(dendro_data, size = 1)+theme_dendro() +                               # 使用专门的dendro主题
+  theme(axis.text.x = element_blank(),           # 移除x轴标签
+        axis.text.y = element_blank(),           # 移除y轴标签
+        axis.ticks = element_blank(),            # 移除所有刻度线
+        plot.margin = margin(0, 0, 0, 0)) 
+
+cor2 <- plot_grid(dendro_plot, cor1, ncol = 1, rel_heights = c(0.1, 0.7), align = "v")
+
+fung_size$Treatment1 <- factor(fung_size$Treatment1, levels=c("Control","Preflowering drought","Postflowering drought"))
+two1 <- ggplot(data = fung_size, aes(y = Fungi_percent,  x =Timepiont)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  labs(x="Week",y="Fungal community \n abundance")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=8, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")+ 
+  stat_function(fun = function(x) 98.31192/(1 + exp(-(x -8.63830)/0.91701)), color = '#16a085', size = 1.5)+
+  stat_function(fun = function(x) 101.1381/(1 + exp(-(x -10.3931)/1.7165)), color = '#d35400', size = 1.5)+
+  stat_function(fun = function(x) 96.5130/(1 + exp(-(x -8.8562)/1.3339)), color = '#2c3e50', size = 1.5)
+
+three1 <- ggplot(data = fung_size, aes(y = Fungi_percent,  x =Timepiont)) +
+  labs(x="Week",y="Community expansion \n rate")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=7, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")+
+  stat_function(fun = function(x) 98.31192 * (exp(-(x - 8.6383)/0.91701) * (1/0.91701))/(1 + exp(-(x - 8.6383)/0.91701))^2, color = '#16a085', size = 1.5)+
+  stat_function(fun = function(x) 101.1381 * (exp(-(x - 10.3931)/1.7165) * (1/1.7165))/(1 + exp(-(x - 10.3931)/1.7165))^2, color = '#d35400', size = 1.5)+
+  stat_function(fun = function(x) 96.513 * (exp(-(x - 8.8562)/1.3339) * (1/1.3339))/(1 + exp(-(x - 8.8562)/1.3339))^2, color = '#2c3e50', size = 1.5)
+
+c <- ggplot(data = subset(fung_size, fung_size$max_growth < 1 ), aes(y = max_growth,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Max growth \n rate")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=8, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+one1 <- ggplot(data = fung_size, aes(y = Genome_size,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Average genome \n  size")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=9, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+two2 <- ggplot(data = fung_size, aes(y = Gene_richness/1000,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Transcribed gene \n richness (x1000)")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=7, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+three2 <- ggplot(data = fung_size, aes(y = Transcript_disper,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Metatranscriptomic \n beta diversity")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=9, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+g <- ggplot(data = fung_size, aes(y = Transcript_size,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Average transcript \n length")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=9, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+h <- ggplot(data = fung_size, aes(y = OTU_richness,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Fungal OTU \n richness")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=9, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+one2 <- ggplot(data = fung_size, aes(y = OTU_disper,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Taxonomic \n beta diversity")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=9, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+j <- ggplot(data = fung_size, aes(y = Genome_GC,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Average genome \n  GC content")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=9, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+k <- ggplot(data = fung_size, aes(y = Transcript_GC,  x =Timepiont,group=Treatment1,color=Treatment1)) +
+  geom_point(aes(color=Treatment1), size = 2, alpha = 0.5)+
+  scale_color_manual(values=c("#16a085","#d35400","#2c3e50")) +
+  geom_smooth(se=FALSE,size=2, method="loess", aes(color=Treatment1), alpha = 0.2)+
+  labs(x="Week",y="Average transcript \n GC content")+
+  theme_bw()+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=9, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+z <- ggplot(data = fung_size, aes(x = Transcript_disper,  y = OTU_disper)) +
+  geom_point(aes(colour=Timepiont,shape=Treatment1), size = 2, alpha = 0.5)+
+  geom_smooth(se=FALSE,size=2, method="loess", aes(), alpha = 0.2,color = 'grey80')+
+  labs(x="Metatranscriptomic \n beta diversity",y="Taxonomic \n beta diversity")+
+  theme_bw()+guides(color=guide_colorbar(title="Week",title.position = "top"),shape=guide_legend(title="Treatment",title.position = "top"))+
+  scale_color_distiller(palette = "Spectral")+ scale_shape_manual(values=c(15,19,17))+
+  theme(plot.title=element_text(face="bold",hjust=0.5,size=10),
+        strip.text = element_text(size = 10,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=0, face="bold"),
+        legend.text = element_text(colour="black", size=9, face="bold"),
+        axis.text=element_text(size=8,face="bold"),
+        axis.title=element_text(size=10,face="bold"),title=element_text(size=10,face="bold"),legend.position = "none")
+
+ggarrange(cor1,ggarrange(one1,one2,NULL,nrow=3,heights = c(0.35,0.35,0.3)),ggarrange(two1,two2,NULL,nrow=3,heights = c(0.35,0.35,0.3)),ggarrange(three1,three2,NULL,nrow=3,heights = c(0.35,0.35,0.3)),
+          ncol = 4, widths = c(1.2,0.25,0.25,0.25))
+
+ggarrange(cor2,ggarrange(one1,two1,three1,z,nrow=4,heights = c(0.25,0.25,0.25,0.25)),ggarrange(one2,two2,three2,NULL,nrow=4,heights = c(0.25,0.25,0.25,0.25)),labels = c("a", "b", "c", "d","e","f","g","h"),
+          ncol = 3, widths = c(1.8,0.5,0.5))
+
+ggsave("Fig. 1.pdf",width = 12, height =8)
+
+
+ggarrange(ggarrange(c, g, h,ncol=3,widths = c(1,1,1)),ggarrange(j, k,NULL,ncol = 3,widths = c(1,1,1)),labels = c("a", "b", "c", "d","e"),nrow = 2)
+
+ggsave("Supplementary Fig. 3.pdf",width = 9, height =6)
+
+
+ggplot(data = fung_size, aes(x = Transcript_disper,  y = OTU_disper)) +
+  geom_point(aes(colour=Timepiont,shape=Treatment1), size = 5, alpha = 1)+
+  geom_smooth(se=FALSE,size=2, method="loess", aes(), alpha = 0.2,color = 'grey80')+
+  labs(x="Metatranscriptomic beta diversity",y="Taxonomic beta diversity")+
+  theme_bw()+guides(color=guide_colorbar(title="Week",title.position = "top"),shape=guide_legend(title="Treatment",title.position = "top"))+
+  scale_color_distiller(palette = "Spectral")+ scale_shape_manual(values=c(15,19,17))+
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=12, face="bold"),
+        legend.text = element_text(colour="black", size=10, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=15,face="bold"),legend.position = 'bottom',legend.direction = 'horizontal')
+
+#ggsave("Supp_Trans_Taxn_beta_cor.pdf",width = 6, height =7)
+
+t <- ggplot(data = fung_size, aes(x = max_growth,  y = Growth_rate)) +
+  geom_point(aes(colour=Timepiont), size = 5, alpha = 1)+
+  geom_smooth(se=FALSE,size=2, method="lm", aes(), alpha = 0.2,color = 'grey80')+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0.5,label.y = 25,size=6,fontface='bold',color = 'red') +
+  labs(x="Max growth rate",y="Community growth rate")+scale_shape_manual(values=c(15,19,17)) +
+  theme_bw()+guides(color=guide_colorbar(title="Week",title.position = "top"),shape="none")+
+  scale_color_distiller(palette = "Spectral")+
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=12, face="bold"),
+        legend.text = element_text(colour="black", size=10, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=15,face="bold"),legend.position = c(0.4,0.8),legend.direction = 'horizontal')
+
+
+fungfunc1 <- fungfunc[,c(12,4,11,13:584)]
+fungfunc1 <- na.omit(fungfunc1)
+fungfunc1 <- fungfunc1[, colSums(fungfunc1 != 0) > 0]
+colnames(fungfunc1)[1] <- 'ID_OTU'
+fungfunc1 <- left_join(fungfunc1,zg1[,c(5:11)],by='ID_OTU')
+fungfunc2 <- decostand(fungfunc1[,c(2:559)], 'standardize',2)
+
+fungfunc2$beta_all <- fungfunc2$`Taxonomic beta diversity`+fungfunc2$`Metatranscriptomic beta diversity`
+fungfunc2$effect_all <- rowSums(fungfunc2[,c(3:558)])
+fungfunc2 <- cbind(fungfunc2,fungfunc1[,c(1,560:565)])
+
+a <- ggplot(fungfunc2,aes(effect_all,beta_all))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of \n fungal effector genes",y = "Integrated \n beta diversity")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+b <- ggplot(fungfunc2,aes(effect_all,fungfunc2$`Taxonomic beta diversity`))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of \n fungal effector genes",y = "Taxonomic \n beta diversity")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+c <- ggplot(fungfunc2,aes(effect_all,fungfunc2$`Metatranscriptomic beta diversity`))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 0.3,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of \n fungal effector genes",y = "Metatranscriptomic \n beta diversity")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+
+library(ggpubr)
+
+
+#ggsave("fungal effector genes_betadisper.pdf",width = 12, height =5)
+
+fungfunc_cazy <- fungfunc[,c(12,4,11,586:634)]
+fungfunc_cazy <- na.omit(fungfunc_cazy)
+fungfunc_cazy <- fungfunc_cazy[, colSums(fungfunc_cazy != 0) > 0]
+colnames(fungfunc_cazy)[1] <- 'ID_OTU'
+fungfunc_cazy <- left_join(fungfunc_cazy,zg1[,c(5:11)],by='ID_OTU')
+fungfunc_cazy2 <- decostand(fungfunc_cazy[,c(2:52)], 'standardize',2)
+
+fungfunc_cazy2$beta_all <- fungfunc_cazy2$`Taxonomic beta diversity`+fungfunc_cazy2$`Metatranscriptomic beta diversity`
+fungfunc_cazy2$cazy_all <- rowSums(fungfunc_cazy2[,c(3:51)])
+fungfunc_cazy2 <- cbind(fungfunc_cazy2,fungfunc_cazy[,c(1,53:58)])
+
+pce_id_plant <- subset(pce_id,pce_id$Description =="PCWDE")
+fungfunc_cazy_plant <- fungfunc_cazy2[,pce_id_plant$Index]
+fungfunc_cazy_plant$cazy_plant <- rowSums(fungfunc_cazy_plant)
+fungfunc_cazy2 <- cbind(fungfunc_cazy2,fungfunc_cazy_plant$cazy_plant)
+colnames(fungfunc_cazy2)[61] <- 'cazy_plant' 
+
+e <- ggplot(fungfunc_cazy2,aes(cazy_plant,beta_all))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of \n fungal PCWDE genes",y = "Integrated \n beta diversity")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+f <- ggplot(fungfunc_cazy2,aes(cazy_plant,`Taxonomic beta diversity`))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of \n fungal PCWDE genes",y = "Taxonomic \n beta diversity")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+g <- ggplot(fungfunc_cazy2,aes(cazy_plant,`Metatranscriptomic beta diversity`))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 0.3,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of \n fungal PCWDE genes",y = "Metatranscriptomic \n beta diversity")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+
+library(ggpubr)
+
+ggarrange(f,g,e,b,c,a,ncol = 3,nrow = 2,common.legend=TRUE,legend = "bottom",labels = c("a", "b", "c", "d","e","f"))
+#ggarrange(ggarrange(e,f,g,ncol = 3,common.legend=TRUE,legend = "none"),ggarrange(a,b,c,ncol = 3,common.legend=TRUE,legend = "bottom"),nrow = 2,common.legend=TRUE,legend = "bottom")
+ggsave(Fig. 3.pdf",width = 8, height =6)
+
+
+

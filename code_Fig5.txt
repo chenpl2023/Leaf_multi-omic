@@ -1,0 +1,132 @@
+zg <- read.csv("Group.csv",header = T,row.names = 1)
+nrow(zg)
+zg <- subset(zg, ID_metab != '#N/A')
+nrow(zg)
+zg <- subset(zg, Habitat == 'Leaf')
+otu <- read.csv("0000BacteriaFungi.csv",header = T,row.names = 1)
+fungi <- subset(otu, otu$Kingdom1=="Fungi")
+fungi <- fungi[,(1:1029)]
+fungi <- data.frame(t(fungi))
+fungi <- as.data.frame(fungi[row.names(fungi)%in%zg$ID_metab,])
+library(vegan)
+fungi = as.data.frame(rrarefy(fungi, min(rowSums(fungi))))
+
+Trans <- read.table("gene.TPM",header = T,row.names = 1)
+Trans <- data.frame(t(Trans))
+Trans <- as.data.frame(Trans[row.names(Trans)%in%row.names(zg),])
+Trans$ID = row.names(Trans)
+zg$ID = row.names(zg)
+library(dplyr)
+Trans_g <- left_join(Trans,zg[,c(5,11)],by='ID')
+row.names(Trans_g) <- Trans_g$ID_metab
+Trans_g <- select(Trans_g,-c(ID,ID_metab))
+ncol(Trans_g)
+Trans_g <-Trans_g[order(row.names(Trans_g)),]
+fungi <-fungi[order(row.names(fungi)),]
+row.names(Trans_g)==row.names(fungi)
+
+Sorg_leaf_trans <- read.table("leaf_normCounts.txt",header=T, sep='\t',row.names = 1)
+Sorg_leaf_trans <- data.frame(t(Sorg_leaf_trans))
+Sorg_leaf_trans$ID3 = row.names(Sorg_leaf_trans)
+Sorg_leaf_trans <- left_join(zg[,c(5,3)],Sorg_leaf_trans,by='ID3')
+row.names(Sorg_leaf_trans) <- Sorg_leaf_trans$ID_metab
+Sorg_leaf_trans <- select(Sorg_leaf_trans,-c(ID3,ID_metab))
+Sorg_leaf_trans <-Sorg_leaf_trans[order(row.names(Sorg_leaf_trans)),]
+row.names(Trans_g)==row.names(Sorg_leaf_trans)
+
+metab <- read.csv("Metabolome1.csv",header = T,row.names = 1)
+metab <- as.data.frame(metab[row.names(metab)%in%zg$ID_metab,])
+metab <-metab[order(row.names(metab)),]
+row.names(Trans_g)==row.names(metab)
+
+net_L <- cbind(Trans_g,fungi,Sorg_leaf_trans,metab)
+
+type <- c('Fungal_transcript','Fungal_OTU','Sorghum_transcript','Sorghum_metabolome')
+number <- c(251273,1077,21808,299)                                   
+df=data.frame(type,number)
+library(ade4)
+w1 <- data.frame(scale(net_L, scal = FALSE))
+w2 <- ktab.data.frame(w1, df$number, tabnames = as.character(df$type))
+mcoa1 <- mcoa(w2, "lambda1", scan = FALSE)
+
+#计算坐标
+coolig <- mcoa1$SynVar[, c(1, 2)]
+for (k in 2:nrow(mcoa1$cov2)) {
+  coolig <- rbind.data.frame(coolig, mcoa1$SynVar[, c(1, 
+                                                  2)])
+}
+names(coolig) <- names(mcoa1$Tl1)[c(1, 2)]
+row.names(coolig) <- row.names(mcoa1$Tl1)
+
+aa <- data.frame(mcoa1$Tl1[, c(1, 2)])
+colnames(aa) <- c('paix1','paix2')
+row.names(coolig) == row.names(aa)
+dd <- cbind(aa,coolig)
+
+library(splitstackshape)
+dd$gg <- rownames(dd)
+dd.L2<-cSplit(dd, "gg", ".")
+zg$gg_1 <- zg$ID_metab
+dd_L3 <- left_join(dd.L2,zg[,c(8,9,12)],by='gg_1')
+dd_L3$Timepiont <- gsub("TP", "",dd_L3$Timepiont , fixed = TRUE)
+dd_L3$Timepiont  <- as.numeric(dd_L3$Timepiont)
+
+library(ggplot2)
+#计算解释度
+pcoa_eig <- (mcoa1$pseudoeig)[1:16] / sum(mcoa1$pseudoeig)
+pcoa_eig <- pcoa_eig*100
+MCOA <- c("MCOA1","MCOA2","MCOA3","MCOA4","MCOA5","MCOA6","MCOA7","MCOA8","MCOA9","MCOA10","MCOA11","MCOA12","MCOA13","MCOA14","MCOA15","MCOA16")
+
+a = data.frame(MCOA,pcoa_eig)
+a$MCOA <- factor(a$MCOA, levels = c("MCOA1","MCOA2","MCOA3","MCOA4","MCOA5","MCOA6","MCOA7","MCOA8","MCOA9","MCOA10","MCOA11","MCOA12","MCOA13","MCOA14","MCOA15","MCOA16"))
+
+ggplot(data = a,aes(MCOA,pcoa_eig)) + geom_bar(stat="identity")+
+  labs(x="MCOA Dimension",y="% of variation")+
+  theme_bw()+
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_blank(),
+        legend.text = element_text(colour="black", size=12, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=12,face="bold"),legend.position = "none")
+
+ggsave("Dimension MCOA.pdf",width = 10, height =5)
+
+library(reshape2)
+cov <- mcoa1$cov2
+colnames(cov) <- c('MCOA1','MCOA2','MCOA3')
+cov$ID <-  c('Fungal gene expression','Fungal OTU composition','Plant gene expression','Plant metabolite')
+ratio <- melt(cov, id.vars = "ID")
+ratio <- subset(ratio, ratio$variable !="MCOA3")
+
+
+ggplot(data = ratio,aes(value,ID)) + geom_col(aes())+
+  labs(y=NULL,x="Contribution")+
+  facet_grid(.~variable, scales = "free",space='free')+
+  theme_bw()+
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_blank(),
+        legend.text = element_text(colour="black", size=12, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=12,face="bold"),legend.position = "none")
+
+ggsave("Supplementary Fig. 8.pdf",width = 5, height =5)
+
+ ggplot(dd_L3) +
+geom_segment(aes(x = Axis1, y = Axis2, xend = paix1, yend = paix2, color = Timepiont), show.legend = FALSE) +
+geom_point(aes(x = paix1, y = paix2, color = Timepiont, shape=gg_2)) +scale_shape_manual(values=c(0,1,2,3))+
+scale_color_distiller(palette = "Spectral")+guides(color=guide_colorbar(title="Week",title.position = "top"),shape=guide_legend(title="Data type",bycol = T,ncol = 1,title.position = "top")) +
+  xlab(paste0("MCOA1 (",round(pcoa_eig[1],2),"%)")) +
+  ylab(paste0("MCOA2 (",round(pcoa_eig[2],2),"%)"))+
+ theme(panel.background = element_rect(color = 'black', fill = 'transparent'), 
+    panel.grid = element_blank(), legend.key = element_blank(), 
+     axis.ticks = element_line(color = 'black'),
+strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=10, face="bold"),
+        legend.text = element_text(colour="black", size=8, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=15,face="bold"),legend.position = c(0.8,0.30),legend.direction = 'horizontal')
+
+ggsave("Fig. 5.pdf",width = 5, height =5)

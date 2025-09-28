@@ -1,0 +1,184 @@
+setwd("E:/陈沛霖-病原菌/代谢-微生物组/Trans_OTU")
+trans<-readRDS(paste0("Fung_Trans_all_rare_leaf_dist.RDS"))
+otu<-readRDS(paste0("Fungi_otu_all_rare_leaf_dist.RDS"))
+library(reshape2)
+trans<-as.matrix(trans)
+otu<-as.matrix(otu)
+library(vegan)
+library(ggplot2)
+library(ape)
+library(tidyverse)
+row.names(trans)==row.names(otu)
+mant <- mantel(trans,otu,permutations = 999)
+mant_r <- round(mant$statistic,2)
+mant_p <- mant$signif
+mds.f <- as.data.frame(pcoa(trans)$vectors)
+mds.e <- as.data.frame(pcoa(otu)$vectors)
+
+pro <- procrustes(mds.f,mds.e, symmetric = TRUE)
+pro_test <- protest(mds.f,mds.e, permutations = 999)
+
+eigen <- sqrt(pro$svd$d)
+percent_var <- signif(eigen/sum(eigen), 4)*100
+
+beta_pro <- data.frame(pro$X)
+trans_pro <- data.frame(pro$Yrot)
+beta_pro$UserName <- rownames(beta_pro)
+beta_pro$type <- "Transcript"
+trans_pro$UserName <- rownames(trans_pro)
+trans_pro$type <- "OTU"
+
+colnames(trans_pro) <- colnames(beta_pro)
+pvalue = pro_test$signif
+M =round(pro_test$ss,2)
+plot <- rbind(beta_pro, trans_pro)
+
+zg <- read.csv("Group.csv",header = T,row.names = 1)
+zg$UserName <- zg$ID_OTU
+zg$Timepiont <- gsub("TP", "",zg$Timepiont , fixed = TRUE)
+zg$Timepiont  <- as.numeric(zg$Timepiont)
+plot <- left_join(plot,zg,by='UserName')
+plot$Habitat <- as.factor(plot$Habitat)
+plot <- as.data.frame(plot)
+
+ggplot(plot) +
+  geom_point(size = 3, aes(x = Axis.1, y = Axis.2, color=Timepiont,shape=type))+labs(title = "Leaf Fungi transcript-OTU Procrustes") +
+  scale_shape_manual(values=c(1,19))+scale_color_distiller(palette = "Spectral")+
+  theme_classic() +
+  geom_line(aes(x= Axis.1, y=Axis.2, group=UserName), col = "darkgrey", alpha = 0.4)+theme_bw() +
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=12, face="bold"),
+        legend.text = element_text(colour="black", size=10, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=15,face="bold"),legend.position = c(0.15,0.20),legend.direction = 'horizontal') +
+  guides(shape=guide_legend(title="Type",byrow = T,nrow = 2,title.position = "top",title.hjust = 0.5),color=guide_colorbar(title="Week",title.position = "top")) +
+  annotate("text", x = -0.078, y = 0.022, label = paste0("Protest: M=",M,"  p<",pvalue,"\n","Mantel: R=",mant_r,"  p<",mant_p), size = 4) +
+  xlab(paste0("PCo1 (",percent_var[1],"%)")) +
+  ylab(paste0("PCo2 (",percent_var[2],"%)")) 
+
+ggsave("Leaf Fungi transcript-OTU Procrustes.pdf",width = 6, height =6)
+
+
+
+setwd("E:/陈沛霖-病原菌/代谢-微生物组/Trans_OTU")
+trans<-readRDS(paste0("Fung_Trans_all_rare_leaf_dist.RDS"))
+otu<-readRDS(paste0("Sorghum_tran__all_rare_leaf_dist.RDS"))
+library(reshape2)
+trans<-as.matrix(trans)
+otu<-as.matrix(otu)
+library(vegan)
+library(ggplot2)
+library(ape)
+library(tidyverse)
+row.names(trans)==row.names(otu)
+mant <- mantel(trans,otu,permutations = 999)
+mant_r <- round(mant$statistic,2)
+mant_p <- mant$signif
+mds.f <- as.data.frame(pcoa(trans)$vectors)
+mds.e <- as.data.frame(pcoa(otu)$vectors)
+
+pro <- procrustes(mds.f,mds.e, symmetric = TRUE)
+pro_test <- protest(mds.f,mds.e, permutations = 999)
+
+eigen <- sqrt(pro$svd$d)
+percent_var <- signif(eigen/sum(eigen), 4)*100
+
+beta_pro <- data.frame(pro$X)
+trans_pro <- data.frame(pro$Yrot)
+beta_pro$UserName <- rownames(beta_pro)
+beta_pro$type <- "Fungal transcript"
+trans_pro$UserName <- rownames(trans_pro)
+trans_pro$type <- "Sorghum transcript"
+
+colnames(trans_pro) <- colnames(beta_pro)
+pvalue = pro_test$signif
+M =round(pro_test$ss,2)
+plot <- rbind(beta_pro, trans_pro)
+
+zg <- read.csv("Group.csv",header = T,row.names = 1)
+zg$UserName <- zg$ID_OTU
+zg$Timepiont <- gsub("TP", "",zg$Timepiont , fixed = TRUE)
+zg$Timepiont  <- as.numeric(zg$Timepiont)
+plot <- left_join(plot,zg,by='UserName')
+plot$Habitat <- as.factor(plot$Habitat)
+plot <- as.data.frame(plot)
+
+ggplot(plot) +
+  geom_point(size = 3, aes(x = Axis.1, y = Axis.2, color=Timepiont,shape=type))+labs(title = "Leaf Fungi - Sorghum transcript Procrustes") +
+  scale_shape_manual(values=c(1,19))+scale_color_distiller(palette = "Spectral")+
+  theme_classic() +
+  geom_line(aes(x= Axis.1, y=Axis.2, group=UserName), col = "darkgrey", alpha = 0.4)+theme_bw() +
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=12, face="bold"),
+        legend.text = element_text(colour="black", size=10, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=15,face="bold"),legend.position = c(0.17,0.20),legend.direction = 'horizontal') +
+  guides(shape=guide_legend(title="Type",byrow = T,nrow = 2,title.position = "top",title.hjust = 0.5),color=guide_colorbar(title="Week",title.position = "top")) +
+  annotate("text", x = -0.078, y = 0.027, label = paste0("Protest: M=",M,"  p<",pvalue,"\n","Mantel: R=",mant_r,"  p<",mant_p), size = 4) +
+  xlab(paste0("PCo1 (",percent_var[1],"%)")) +
+  ylab(paste0("PCo2 (",percent_var[2],"%)")) 
+
+ggsave("Leaf Fungi transcript-Sorghum transcript.pdf",width = 6, height =6)
+
+setwd("E:/陈沛霖-病原菌/代谢-微生物组/Trans_OTU")
+trans<-readRDS(paste0("Fungi_Trans_metab_leaf_dist.RDS"))
+otu<-readRDS(paste0("metab_leaf_dist.RDS"))
+library(reshape2)
+trans<-as.matrix(trans)
+otu<-as.matrix(otu)
+library(vegan)
+library(ggplot2)
+library(ape)
+library(tidyverse)
+row.names(trans)==row.names(otu)
+mant <- mantel(trans,otu,permutations = 999)
+mant_r <- round(mant$statistic,2)
+mant_p <- mant$signif
+mds.f <- as.data.frame(pcoa(trans)$vectors)
+mds.e <- as.data.frame(pcoa(otu)$vectors)
+
+pro <- procrustes(mds.f,mds.e, symmetric = TRUE)
+pro_test <- protest(mds.f,mds.e, permutations = 999)
+
+eigen <- sqrt(pro$svd$d)
+percent_var <- signif(eigen/sum(eigen), 4)*100
+
+beta_pro <- data.frame(pro$X)
+trans_pro <- data.frame(pro$Yrot)
+beta_pro$UserName <- rownames(beta_pro)
+beta_pro$type <- "Fungal transcript"
+trans_pro$UserName <- rownames(trans_pro)
+trans_pro$type <- "Sorghum metabolite"
+
+colnames(trans_pro) <- colnames(beta_pro)
+pvalue = pro_test$signif
+M =round(pro_test$ss,2)
+plot <- rbind(beta_pro, trans_pro)
+
+zg <- read.csv("Group.csv",header = T,row.names = 1)
+zg$UserName <- zg$ID_OTU
+zg$Timepiont <- gsub("TP", "",zg$Timepiont , fixed = TRUE)
+zg$Timepiont  <- as.numeric(zg$Timepiont)
+plot <- left_join(plot,zg,by='UserName')
+plot$Habitat <- as.factor(plot$Habitat)
+plot <- as.data.frame(plot)
+
+ggplot(plot) +
+  geom_point(size = 3, aes(x = Axis.1, y = Axis.2, color=Timepiont,shape=type))+labs(title = "Leaf Fungi transcript-Sorghum metabolite Procrustes") +
+  scale_shape_manual(values=c(1,19))+scale_color_distiller(palette = "Spectral")+
+  theme_classic() +
+  geom_line(aes(x= Axis.1, y=Axis.2, group=UserName), col = "darkgrey", alpha = 0.4)+theme_bw() +
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=12, face="bold"),
+        legend.text = element_text(colour="black", size=10, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=15,face="bold"),legend.position = c(0.19,0.20),legend.direction = 'horizontal') +
+  guides(shape=guide_legend(title="Type",byrow = T,nrow = 2,title.position = "top",title.hjust = 0.5),color=guide_colorbar(title="Week",title.position = "top")) +
+  annotate("text", x = -0.07, y = 0.030, label = paste0("Protest: M=",M,"  p<",pvalue,"\n","Mantel: R=",mant_r,"  p<",mant_p), size = 4) +
+  xlab(paste0("PCo1 (",percent_var[1],"%)")) +
+  ylab(paste0("PCo2 (",percent_var[2],"%)")) 
+
+ggsave("Leaf Fungi transcript-Sorghum metabolite.pdf",width = 6, height =6)

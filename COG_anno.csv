@@ -1,0 +1,27 @@
+Term,Type,Annotation
+J,Information storage and processing,"Translation, ribosomal structure and biogenesis"
+A,Information storage and processing,RNA processing and modification
+K,Information storage and processing,Transcription
+L,Information storage and processing,"Replication, recombination and repair"
+B,Information storage and processing,Chromatin structure and dynamics
+D,Cellular processes and signaling,"Cell cycle control, cell division, chromosome partitioning"
+Y,Cellular processes and signaling,Nuclear structure
+V,Cellular processes and signaling,Defense mechanisms
+T,Cellular processes and signaling,Signal transduction mechanisms
+M,Cellular processes and signaling,Cell wall/membrane/envelope biogenesis
+N,Cellular processes and signaling,Cell motility
+Z,Cellular processes and signaling,Cytoskeleton
+W,Cellular processes and signaling,Extracellular structures
+U,Cellular processes and signaling,"Intracellular trafficking, secretion, and vesicular transport"
+O,Cellular processes and signaling,"Posttranslational modification, protein turnover, chaperones"
+X,Cellular processes and signaling,"Mobilome: prophages, transposons"
+C,Metabolism,Energy production and conversion
+G,Metabolism,Carbohydrate transport and metabolism
+E,Metabolism,Amino acid transport and metabolism
+F,Metabolism,Nucleotide transport and metabolism
+H,Metabolism,Coenzyme transport and metabolism
+I,Metabolism,Lipid transport and metabolism
+P,Metabolism,Inorganic ion transport and metabolism
+Q,Metabolism,"Secondary metabolites biosynthesis, transport and catabolism"
+R,Poorly characterized,General function prediction only
+S,Poorly characterized,Function unknown

@@ -1,0 +1,76 @@
+setwd("E:/陈沛霖-病原菌/代谢-微生物组/fpc")
+library(splitstackshape)
+data <- read.csv("KO_TPM_spf.csv",header = T,row.names = 1)
+groupc <- read.csv("Group_OTU.csv",header = T,row.names = 1)
+groupc <- subset(groupc, groupc$Habitat=="Leaf")
+data1 <- data.frame(t(data))
+data2 <- match(row.names(groupc),row.names(data1))
+data3 <- data1[data2,]
+
+groupc$lev1<-interaction(groupc$Timepiont, groupc$Treatment1,sep = "a" ) 
+row.names(groupc)==row.names(data3)
+data_lev<-as.data.frame(aggregate(data3,by=list(groupc$lev1), mean))
+
+colnames(data_lev)[1] <- 'Group'
+row.names(data_lev) <- data_lev[,1]
+groupc1 <- as.data.frame(data_lev[,c(1)])
+row.names(groupc1) <- groupc1[,1]
+colnames(groupc1)[1] <- 'gg'
+groupc2<-cSplit(groupc1, "gg", "a")
+row.names(groupc2) <- data_lev[,1]
+groupc2$gg_1  <- gsub("TP", "",groupc2$gg_1, fixed = TRUE)
+
+data3 <- data_lev[,-1]
+data4 <- data.frame(t(data3))
+
+
+data4 <- data4[which(rowSums(data4)>0),]
+groupd <- data.frame(groupc2[,-c(1)])
+
+colnames(groupd)[1]<-'Treat'
+row.names(groupd) <- data_lev[,1]
+groupd$Treat <- factor(groupd$Treat,levels = c("Control","Pre_flowering_drought","Post_flowering_drought"))
+library(pheatmap)
+
+ann_colors = list(Treat=c(Control="#DDBC95",Pre_flowering_drought="#B38867",Post_flowering_drought="#CDCDC0"))
+coul <- colorRampPalette(c("#5bc0eb",'black',"#ECE700"))(100)
+
+data5 <- data4[,c(1:16,26:40,17:25)]
+
+
+p <- pheatmap(data5,scale="row", annotation_col = groupd,show_rownames=F,cluster_cols=F,cluster_rows=T,labels_col = groupc2$gg_1,angle_col = 0,fontsize_col = 8,annotation_colors = ann_colors,border=FALSE,cellwidth = 15, cellheight = 0.04,color=coul,cutree_rows = 3,filename ="Supplementary Fig. 6b.pdf")
+
+row_cluster <- cutree(p$tree_row,k=3)
+table(row_cluster)
+
+library(ape)
+library(dplyr)
+trans<-readRDS(paste0("Fung_Trans_all_rare_leaf_dist.RDS"))
+trans.pc <- pcoa(trans)
+pc1=round(trans.pc$values$Relative_eig[1], 3)*100
+pc2=round(trans.pc$values$Relative_eig[2], 3)*100
+pc.ko = as.data.frame(trans.pc$vectors)
+zg <- read.csv("Group.csv",header = T,row.names = 1)
+zg <- subset(zg, ID_OTU != '#N/A')
+zg$Timepiont  <- gsub("TP", "",zg$Timepiont, fixed = TRUE)
+zg$Timepiont  <- as.numeric(zg$Timepiont)
+pc.ko$ID_OTU <- row.names(pc.ko)
+
+
+pc.ko2 <- left_join(pc.ko,zg,by='ID_OTU')
+
+ggplot(pc.ko2,aes(Axis.1,Axis.2)) + 
+  geom_point(aes(colour=Timepiont, shape=Treatment1),size=3)+labs(title = "Fungi transcript")+
+  labs(x = sprintf("PCo1 (%.1f%%)", pc1), y = sprintf("PCo2 (%.1f%%)", pc2))+
+   guides(color=guide_colorbar(title="Week",title.position = "top"),shape=guide_legend(title="Treatment",bycol = T,ncol = 1,title.position = "top"))+theme_bw()+
+  scale_color_distiller(palette = "Spectral") +
+  scale_shape_manual(values=c(15,16,17))+
+  theme(strip.text = element_text(size = 15,face="bold"),
+        panel.spacing = unit(0, "lines"),
+        legend.title = element_text(colour="black", size=12, face="bold"),
+        legend.text = element_text(colour="black", size=10, face="bold"),
+        axis.text=element_text(size=10,face="bold"),
+        axis.title=element_text(size=15,face="bold"),title=element_text(size=15,face="bold"),legend.position = c(0.2,0.22),legend.direction = 'horizontal')+
+  annotate("text", x = -0.45, y = 0.11, label = paste0("Time: R=0.44, p<0.01","\n","Treatment: R=0.06, p<0.01","\n","Cultivar: R=0.07, p<0.01"), size = 4)
+
+ggsave("Supplementary Fig. 6a.pdf",width = 6, height =6)
