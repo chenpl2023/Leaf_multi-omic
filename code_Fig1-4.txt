@@ -2,7 +2,7 @@
 library(ggplot2)
 library(tidyverse)
 library(reshape2)
-setwd("E:/陈沛霖-病原菌/代谢-微生物组/fpc")
+setwd("E:/陈沛霖-病原菌/代谢-微生物组/code/Leaf_multi-omic1")
 zg <- read.csv("Group_OTU.csv",header = T,row.names = 1)
 nrow(zg)
 zg <- subset(zg, ID_OTU != '#N/A')
@@ -273,7 +273,7 @@ fung_size1 <- fung_size1[,-c(1,6)]
 fung_size1 <- na.omit(fung_size1)
 
 trait <- fung_size1[,c(1,2,3,5:12)]
-colnames(trait) <- c("Fungal community abundance","Average genome size","Average genome GC content","Average transcript length","Average transcript GC content","Taxonomic beta diversity","Metatranscriptomic beta diversity","Transcribed gene richness","Max growth rate","Community expansion rate","Fungal OTU richness")
+colnames(trait) <- c("Fungal community abundance","Average genome size","Average genome GC content","Average transcript length","Average transcript GC content","Taxonomic beta diversity","Metatranscriptomic beta diversity","Transcribed gene richness","Maximum growth rate","Community expansion rate","Fungal OTU richness")
 Func <- fung_size1[,c(13:36)]
 Otu <- fung_size1[,c(37:61)]
 Metab <- fung_size1[,c(62:95)]
@@ -337,7 +337,7 @@ data$tax <- factor(data$tax, levels = c("Fungal OTU richness",
                                         "Metatranscriptomic beta diversity",
                                         "Community expansion rate",
                                         "Average genome GC content",
-                                        "Max growth rate",
+                                        "Maximum growth rate",
                                         "Average transcript GC content",
                                         "Fungal community abundance",
                                         "Transcribed gene richness"
@@ -405,7 +405,7 @@ res_pce1$tax <- factor(res_pce1$tax, levels = c("Fungal OTU richness",
                                         "Metatranscriptomic beta diversity",
                                         "Community expansion rate",
                                         "Average genome GC content",
-                                        "Max growth rate",
+                                        "Maximum growth rate",
                                         "Average transcript GC content",
                                         "Fungal community abundance",
                                         "Transcribed gene richness"
@@ -419,7 +419,7 @@ res_effec$tax <- factor(res_effec$tax, levels = c("Fungal OTU richness",
                                         "Metatranscriptomic beta diversity",
                                         "Community expansion rate",
                                         "Average genome GC content",
-                                        "Max growth rate",
+                                        "Maximum growth rate",
                                         "Average transcript GC content",
                                         "Fungal community abundance",
                                         "Transcribed gene richness"
@@ -719,6 +719,26 @@ ggarrange(ggarrange(c, g, h,ncol=3,widths = c(1,1,1)),ggarrange(j, k,NULL,ncol =
 
 ggsave("Supplementary Fig. 3.pdf",width = 9, height =6)
 
+#beta_all <- left_join(betadis_trans,betadis_otu[,c(1,5)],by='lev')
+#cor.test(beta_all$OTU_disper,beta_all$Transcript_disper)
+#cor.test(beta_all$OTU_disper,beta_all$Week)
+
+#model<-lm(Transcript_disper~poly(Week,2,raw=TRUE), data = betadis_trans)
+#model_stats <- glance(model)
+#model_stats
+
+#cor.test(fung_size$Genome_size,fung_size$Timepiont)
+#cor.test(fung_size$Fungi_percent,fung_size$Timepiont)
+
+#cor.test(fung_size$Gene_richness,fung_size$Timepiont)
+#cor.test(fung_size$OTU_richness,fung_size$Timepiont)
+#cor.test(fung_size$Transcript_size,fung_size$Timepiont)
+#cor.test(fung_size$Genome_GC,fung_size$Timepiont)
+#cor.test(fung_size$Transcript_GC,fung_size$Timepiont)
+
+#ddfung <- subset(fung_size, fung_size$max_growth < 1 )
+#cor.test(ddfung$max_growth,ddfung$Timepiont)
+
 
 ggplot(data = fung_size, aes(x = Transcript_disper,  y = OTU_disper)) +
   geom_point(aes(colour=Timepiont,shape=Treatment1), size = 5, alpha = 1)+
@@ -762,7 +782,7 @@ fungfunc2$effect_all <- rowSums(fungfunc2[,c(3:558)])
 fungfunc2 <- cbind(fungfunc2,fungfunc1[,c(1,560:565)])
 
 a <- ggplot(fungfunc2,aes(effect_all,beta_all))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
-  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
   ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
   labs(x="Cumulative expression of \n fungal effector genes",y = "Integrated \n beta diversity")+
   guides(color=guide_colorbar(title.position = "top"))+
@@ -773,10 +793,10 @@ a <- ggplot(fungfunc2,aes(effect_all,beta_all))+geom_point(aes(color=Week,shape=
                     axis.text=element_text(size=8,face="bold"),
                     axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
 
-b <- ggplot(fungfunc2,aes(effect_all,fungfunc2$`Taxonomic beta diversity`))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
-  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
-  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
-  labs(x="Cumulative expression of \n fungal effector genes",y = "Taxonomic \n beta diversity")+
+b <- ggplot(fungfunc2,aes(log(effect_all+200),log(`Taxonomic beta diversity`+1.5)))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3.6,label.y = 1.4,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of fungal \n effector genes (Log-transform)",y = "Taxonomic beta diversity \n (Log-transform)")+
   guides(color=guide_colorbar(title.position = "top"))+
   theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
                     panel.spacing = unit(0, "lines"),
@@ -785,10 +805,10 @@ b <- ggplot(fungfunc2,aes(effect_all,fungfunc2$`Taxonomic beta diversity`))+geom
                     axis.text=element_text(size=8,face="bold"),
                     axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
 
-c <- ggplot(fungfunc2,aes(effect_all,fungfunc2$`Metatranscriptomic beta diversity`))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
-  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
-  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 0.3,size=4,r.accuracy = 0.001,fontface='bold')+
-  labs(x="Cumulative expression of \n fungal effector genes",y = "Metatranscriptomic \n beta diversity")+
+c <- ggplot(fungfunc2,aes(log(effect_all+200),log(`Metatranscriptomic beta diversity`+1.5)))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3.6,label.y = 1.7,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of fungal \n effector genes (Log-transform)",y = "Metatranscriptomic beta diversity \n (Log-transform)")+
   guides(color=guide_colorbar(title.position = "top"))+
   theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
                     panel.spacing = unit(0, "lines"),
@@ -821,7 +841,7 @@ fungfunc_cazy2 <- cbind(fungfunc_cazy2,fungfunc_cazy_plant$cazy_plant)
 colnames(fungfunc_cazy2)[61] <- 'cazy_plant' 
 
 e <- ggplot(fungfunc_cazy2,aes(cazy_plant,beta_all))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
-  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
   ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
   labs(x="Cumulative expression of \n fungal PCWDE genes",y = "Integrated \n beta diversity")+
   guides(color=guide_colorbar(title.position = "top"))+
@@ -832,10 +852,10 @@ e <- ggplot(fungfunc_cazy2,aes(cazy_plant,beta_all))+geom_point(aes(color=Week,s
                     axis.text=element_text(size=8,face="bold"),
                     axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
 
-f <- ggplot(fungfunc_cazy2,aes(cazy_plant,`Taxonomic beta diversity`))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
-  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
-  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
-  labs(x="Cumulative expression of \n fungal PCWDE genes",y = "Taxonomic \n beta diversity")+
+f <- ggplot(fungfunc_cazy2,aes(log(cazy_plant+40),log(`Taxonomic beta diversity`+1.5)))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3.6,label.y = 1.4,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of fungal \n PCWDE genes (Log-transform)",y = "Taxonomic beta diversity \n (Log-transform)")+
   guides(color=guide_colorbar(title.position = "top"))+
   theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
                     panel.spacing = unit(0, "lines"),
@@ -844,10 +864,10 @@ f <- ggplot(fungfunc_cazy2,aes(cazy_plant,`Taxonomic beta diversity`))+geom_poin
                     axis.text=element_text(size=8,face="bold"),
                     axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
 
-g <- ggplot(fungfunc_cazy2,aes(cazy_plant,`Metatranscriptomic beta diversity`))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
-  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,16,17))+
-  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 0,label.y = 0.3,size=4,r.accuracy = 0.001,fontface='bold')+
-  labs(x="Cumulative expression of \n fungal PCWDE genes",y = "Metatranscriptomic \n beta diversity")+
+g <- ggplot(fungfunc_cazy2,aes(log(cazy_plant+40),log(`Metatranscriptomic beta diversity`+1.5)))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3.6,label.y = 1.7,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Cumulative expression of fungal \n PCWDE genes (Log-transform)",y = "Metatranscriptomic beta diversity \n (Log-transform)")+
   guides(color=guide_colorbar(title.position = "top"))+
   theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
                     panel.spacing = unit(0, "lines"),
@@ -859,9 +879,145 @@ g <- ggplot(fungfunc_cazy2,aes(cazy_plant,`Metatranscriptomic beta diversity`))+
 
 library(ggpubr)
 
-ggarrange(f,g,e,b,c,a,ncol = 3,nrow = 2,common.legend=TRUE,legend = "bottom",labels = c("a", "b", "c", "d","e","f"))
+ggarrange(f,g,b,c,ncol = 2,nrow = 2,common.legend=TRUE,legend = "bottom",labels = c("a", "b", "c", "d"))
 #ggarrange(ggarrange(e,f,g,ncol = 3,common.legend=TRUE,legend = "none"),ggarrange(a,b,c,ncol = 3,common.legend=TRUE,legend = "bottom"),nrow = 2,common.legend=TRUE,legend = "bottom")
-ggsave(Fig. 3.pdf",width = 8, height =6)
+#ggsave("Fig.3_1.pdf",width = 7, height =7)
+
+library(broom)
+model<-lm(log(`Metatranscriptomic beta diversity`+1.5)~poly(log(cazy_plant+40),2,raw=TRUE), data = fungfunc_cazy2)
+model_stats <- glance(model)
+model_stats
+
+model<-lm(log(`Metatranscriptomic beta diversity`+1.5)~poly(log(effect_all+200),2,raw=TRUE), data = fungfunc2)
+model_stats <- glance(model)
+model_stats
+
+
+model_1 <- lm(log(effect_all+200) ~ log(`Taxonomic beta diversity`+1.5)+log(`Metatranscriptomic beta diversity`+1.5), data = fungfunc2)
+res_1 <- residuals(model_1)
+model_2 <- lm(log(effect_all+200) ~ log(`Taxonomic beta diversity`+1.5), data = fungfunc2)
+res_2 <- residuals(model_2)
+model_3 <- lm(log(effect_all+200) ~ log(`Metatranscriptomic beta diversity`+1.5), data = fungfunc2)
+res_3 <- residuals(model_3)
+
+fungfunc2$res_1 <- res_1
+fungfunc2$res_2 <- res_2
+fungfunc2$res_3 <- res_3
+
+
+f1 <- ggplot(fungfunc2,aes(Week,log(effect_all+200)))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3,label.y = 6.8,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Week",y = "Cumulative expression of fungal \n effector genes (Log-transform, Y1)")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+f2 <- ggplot(fungfunc2,aes(Week,res_1))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Week",y = "Residuals(Y1 ~ β taxon. + β metatrans.)")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+f3 <- ggplot(fungfunc2,aes(Week,res_2))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3,label.y = 2,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Week",y = "Residuals(Y1 ~ β taxon.))")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+f4 <-ggplot(fungfunc2,aes(Week,res_3))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3,label.y = 2.5,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Week",y = "Residuals(Y1 ~ β metatrans.))")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
 
 
 
+model_4 <- lm(log(cazy_plant+40) ~ log(`Taxonomic beta diversity`+1.5)+log(`Metatranscriptomic beta diversity`+1.5), data = fungfunc_cazy2)
+res_4 <- residuals(model_4)
+model_5 <- lm(log(cazy_plant+40) ~ log(`Taxonomic beta diversity`+1.5), data = fungfunc_cazy2)
+res_5 <- residuals(model_5)
+model_6 <- lm(log(cazy_plant+40) ~ log(`Metatranscriptomic beta diversity`+1.5), data = fungfunc_cazy2)
+res_6 <- residuals(model_6)
+
+fungfunc_cazy2$res_4 <- res_4
+fungfunc_cazy2$res_5 <- res_5
+fungfunc_cazy2$res_6 <- res_6
+
+f5 <- ggplot(fungfunc_cazy2,aes(Week,log(cazy_plant+40)))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3,label.y = 4.5,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Week",y = "Cumulative expression of fungal \n PCWDE genes (Log-transform, Y2)")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+f6 <- ggplot(fungfunc_cazy2,aes(Week,res_4))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3,label.y = 0.8,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Week",y = "Residuals(Y2 ~ β taxon. + β metatrans.)")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+f7 <- ggplot(fungfunc_cazy2,aes(Week,res_5))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3,label.y = 0.8,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Week",y = "Residuals(Y2 ~ β taxon.)")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+f8 <- ggplot(fungfunc_cazy2,aes(Week,res_6))+geom_point(aes(color=Week,shape=Treatment1), size = 2)+
+  scale_color_distiller(palette = "Spectral")+scale_shape_manual(values=c(15,17,16))+
+  ggsci::scale_fill_nejm() + ggpubr::stat_cor(aes(label = paste(..r.label..,..p.label.., sep = "~`,`~")),label.x = 3,label.y = 1,size=4,r.accuracy = 0.001,fontface='bold')+
+  labs(x="Week",y = "Residuals(Y2 ~ β metatrans.)")+
+  guides(color=guide_colorbar(title.position = "top"))+
+  theme_bw()+ theme(strip.text = element_text(size = 12,face="bold"),
+                    panel.spacing = unit(0, "lines"),
+                    legend.title = element_text(colour="black", size=10, face="bold"),
+                    legend.text = element_text(colour="black", size=8, face="bold"),
+                    axis.text=element_text(size=8,face="bold"),
+                    axis.title=element_text(size=10,face="bold"),legend.position = c(0.25,0.89),legend.direction = 'horizontal')
+
+
+
+library(ggpubr)
+
+ggarrange(f1,f2,f3,f4,f5,f6,f7,f8,ncol = 4,nrow = 2,common.legend=TRUE,legend = "bottom",labels = c("a", "b", "c", "d","e","f","g","h"))
+
+ggsave("Fig_resi.pdf",width = 12, height =7)
